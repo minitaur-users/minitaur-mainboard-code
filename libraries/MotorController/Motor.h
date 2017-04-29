@@ -240,7 +240,7 @@ public:
   static bool useEXTI;
 
   // Constructor (sets defaults)
-  BlCon34() {}
+  BlCon34() : prevPos(0) {}
 
   /**
    * @brief Initialize a motor for PWM communication
@@ -279,6 +279,7 @@ protected:
   
   uint8_t outPin, inPin;
   // bool usePwmIn;
+  float prevPos;
 };
 
 
