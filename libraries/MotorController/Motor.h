@@ -263,6 +263,9 @@ public:
   void init(uint8_t outPin_, uint8_t inPin_, float zero, int8_t dir) {
     init(outPin_, inPin_, zero, dir, 1.0);
   }
+  /**
+   * @brief Test comment
+   */
   void init(const MotorConnector& J, float zero, int8_t dir, float gearRatio) {
     init(J.outPin, J.inPin, zero, dir, gearRatio);
   }
