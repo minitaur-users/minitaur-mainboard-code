@@ -14,8 +14,6 @@
 #define VN_REG_VPE_MAG_CONFIG    36
 #define VN_REG_YPR_IACC_ANGR     240
 
-// #define VN_USE_DMA
-
 enum VN100ReadMode {
   VN_REQUEST_WAIT_READ, VN_REQUEST, VN_READ_REQUEST
 };
@@ -91,35 +89,14 @@ public:
       // Request
       digitalWrite(csPin, LOW);
 
-#if defined(VN_USE_DMA)
       cmd[0] = VN_CMD_READ;
       cmd[1] = reg;
       _SPI.writeDMA(4, cmd);
-#else
-      // Seems like VN100 likes a small gap between bytes. 
-      // Waiting for TXE delays by ~0.3us and that seems ok
-      SPI_SendData8(_SPI.SPIx, VN_CMD_READ);
-      while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-      SPI_SendData8(_SPI.SPIx, reg);
-      while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-      SPI_SendData8(_SPI.SPIx, 0);
-      while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-      SPI_SendData8(_SPI.SPIx, 0);
-      while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-#endif
+
       digitalWrite(csPin, HIGH);
       if (mode == VN_REQUEST_WAIT_READ) {
-#if defined(VN_USE_DMA)
         // need to wait 50 ms before response (SPI overhead adds some)
         delayMicroseconds(45);
-#else
-        // need to wait 50 ms before response. Use this delay to clear the RX byte
-        uint32_t start = micros();
-        while (micros() - start < 50) {
-          if (SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_RXNE))
-            SPI_ReceiveData8(_SPI.SPIx);
-        }
-#endif
       }
       else if (mode == VN_REQUEST)
         return 0;
@@ -128,46 +105,21 @@ public:
     if (mode == VN_REQUEST_WAIT_READ || mode == VN_READ_REQUEST) {
       digitalWrite(csPin, LOW);
 
-#if defined(VN_USE_DMA)
       uint8_t tempBuf[N+4];
       _SPI.readDMA(N+4, tempBuf);
       memcpy(resphead, tempBuf, 4);
       memcpy(buf, &tempBuf[4], N);
-#else
-      uint8_t c;
-      for (int i=0; i<N+4; ++i) {
-        SPI_SendData8(_SPI.SPIx, 0);
-        while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_RXNE));
-        c = SPI_ReceiveData8(_SPI.SPIx);
-
-        if (i<4)
-          resphead[i] = c;
-        else
-          buf[i-4] = c;
-      }
-#endif
       // delayMicroseconds(1);
 
       digitalWrite(csPin, HIGH);
       if (mode == VN_READ_REQUEST) {
         // Request again
         delayMicroseconds(1);
-#if defined(VN_USE_DMA)
+
         cmd[0] = VN_CMD_READ;
         cmd[1] = reg;
         _SPI.writeDMA(4, cmd);
         delayMicroseconds(1);//doesn't work if released too soon
-#else
-        digitalWrite(csPin, LOW);
-        SPI_SendData8(_SPI.SPIx, VN_CMD_READ);
-        while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-        SPI_SendData8(_SPI.SPIx, reg);
-        while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-        SPI_SendData8(_SPI.SPIx, 0);
-        while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-        SPI_SendData8(_SPI.SPIx, 0);
-        while(!SPI_I2S_GetFlagStatus(_SPI.SPIx, SPI_I2S_FLAG_TXE));
-#endif
 
         digitalWrite(csPin, HIGH);
       }
