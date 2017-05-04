@@ -25,30 +25,16 @@ typedef struct {
   uint16_t checksum;
 } __attribute__ ((packed)) VN100240CHECKSUM;
 
-// Calculates the 16-bit CRC for the given ASCII or binary message.
-unsigned short calculateCRC(unsigned char data[], unsigned int length)
-{
-  unsigned int i;
-  unsigned short crc = 0;
-  for(i=0; i<length; i++){
-    crc  = (unsigned char)(crc >> 8) | (crc << 8);
-    crc ^= data[i];
-    crc ^= (unsigned char) (crc & 0xff) >> 4;
-    crc ^= (crc << 8) << 4;
-    crc ^= ((crc & 0xff) << 4) << 1;
-        }
-  return crc;
-}
 
-unsigned char calculateChecksum (unsigned char data[], unsigned int length)
-{
-  unsigned int i;
-  unsigned char cksum = 0;
-  for (i=0;i<length; i++) {
-    cksum ^= data[i];
-  }
-  return cksum;
-}
+// unsigned char calculateChecksum (unsigned char data[], unsigned int length)
+// {
+//   unsigned int i;
+//   unsigned char cksum = 0;
+//   for (i=0;i<length; i++) {
+//     cksum ^= data[i];
+//   }
+//   return cksum;
+// }
 
 /**
  * @brief VN100 hardware interface library
@@ -57,6 +43,22 @@ class VN100 {
   SPIClass& _SPI;
   uint8_t csPin;
   uint8_t cmd[4];
+
+  // Calculates the 16-bit CRC for the given ASCII or binary message.
+  unsigned short calculateCRC(unsigned char data[], unsigned int length)
+  {
+    unsigned int i;
+    unsigned short crc = 0;
+    for(i=0; i<length; i++){
+      crc  = (unsigned char)(crc >> 8) | (crc << 8);
+      crc ^= data[i];
+      crc ^= (unsigned char) (crc & 0xff) >> 4;
+      crc ^= (crc << 8) << 4;
+      crc ^= ((crc & 0xff) << 4) << 1;
+          }
+    return crc;
+  }
+
 public:
   // response header for SPI read/write commands
   uint8_t resphead[4];
@@ -95,9 +97,10 @@ public:
     // VPE mag config (36) set all to 0 (don't trust magnetometer)
     float magConfig[9] = {0,0,0, 0,0,0, 0,0,0};
     writeReg(VN_REG_VPE_MAG_CONFIG, 36, (const uint8_t *)magConfig);
-    delay(1000);
+    delay(1);
     uint8_t crcConfig[7] = {0,0,0,0,1,3,0};
     writeReg(VN_REG_COM_PRTCL_CNTRL,7,crcConfig);
+    delay(1);
     //Write 16 bit CRC
     //B0 = 0 (Serial COunt OFF), B1 = 0 (Serial Status OFF), B2 = 0 (SPICount OFf)
     //B3 = 0 (SPIStatus OFF), B4 = 1 (Serial Checksum), B5 = 3 (SPI 16bit Checksum )
@@ -106,7 +109,7 @@ public:
     // writeReg(VN_REG_COM_PRTCL_CNTRL,7,crcConfig);
 
     // Test read and request (avoid wait)
-    //readReg(VN_REG_YPR_IACC_ANGR, 36, NULL, VN_REQUEST);
+    // readReg(VN_REG_YPR_IACC_ANGR, 36, NULL, VN_REQUEST);
   }
 
   /**
@@ -283,7 +286,7 @@ public:
     VN100240CHECKSUM packet;
     readReg(VN_REG_YPR_IACC_ANGR, 36, (uint8_t *)&packet);
     // test read and request
-    // uint8_t errId = readReg(VN_REG_YPR_IACC_ANGR, 36, (uint8_t *)dat, VN_READ_REQUEST);
+    // readReg(VN_REG_YPR_IACC_ANGR, 36, (uint8_t *)&packet, VN_READ_REQUEST);
     // problems with reading?
     yaw = radians(packet.dat[0]);
     pitch = radians(packet.dat[1]);
