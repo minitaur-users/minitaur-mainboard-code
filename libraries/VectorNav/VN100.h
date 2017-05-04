@@ -275,7 +275,7 @@ public:
    * @param ay true inertical acc in m/s^2
    * @param az true inertical acc in m/s^2
    */
-  bool get(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld, float& ax, float& ay, float& az) {
+  uint8_t get(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld, float& ax, float& ay, float& az) {
     // VN100: 27 (48bytes) = YPR,MAG,ACC,ANGRATES
     // VN100: 240 (36bytes) = YPR,TRUE_INERTIAL_ACC,ANGRATES
 
@@ -302,7 +302,12 @@ public:
     uint8_t *pCRC = (uint8_t*)&crc; //create dummy for swap
     swapByte(&pCRC[0],&pCRC[1]); //Swap for endianness
     // crcMat
-    return crc == packet.checksum;
+    if(crc == packet.checksum){
+      return 0;
+    }
+    else{
+      return 3;
+    }
   }
 
   /**
