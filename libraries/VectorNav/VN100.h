@@ -99,8 +99,11 @@ public:
     writeReg(VN_REG_VPE_MAG_CONFIG, 36, (const uint8_t *)magConfig);
     delay(1);
     uint8_t crcConfig[7] = {0,0,0,0,1,3,0};
-    writeReg(VN_REG_COM_PRTCL_CNTRL,7,crcConfig);
+    writeReg(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
     delay(1);
+    writeRegCrc(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
+    // vn100.writeReg(6,2,testBytes);
+    delay(5);
     //Write 16 bit CRC
     //B0 = 0 (Serial COunt OFF), B1 = 0 (Serial Status OFF), B2 = 0 (SPICount OFf)
     //B3 = 0 (SPIStatus OFF), B4 = 1 (Serial Checksum), B5 = 3 (SPI 16bit Checksum )
