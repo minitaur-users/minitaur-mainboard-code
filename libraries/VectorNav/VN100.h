@@ -266,6 +266,30 @@ public:
     digitalWrite(csPin, HIGH);
     return resphead[3];
   }
+  
+  void reset() {
+    digitalWrite(csPin, LOW);
+    _SPI.transfer(0x06);
+    _SPI.transfer(0x00);
+    _SPI.transfer(0x00);
+    _SPI.transfer(0x00);
+    digitalWrite(csPin, HIGH);
+    delayMicroseconds(50);
+
+    digitalWrite(csPin, LOW);
+    // delayMicroseconds(1);
+    // "it is sufficient to just clock in only four bytes
+    // on the response packet to verify that the write register took effect, 
+    // which is indicated by a zero error code."
+    for (int i=0; i<4; ++i) {
+      resphead[i] = _SPI.transfer(0x00);
+    }
+    // delayMicroseconds(1);
+    digitalWrite(csPin, HIGH);
+
+  }
+  
+
 
   /**
    * @brief Retrieves angles and angular rates
