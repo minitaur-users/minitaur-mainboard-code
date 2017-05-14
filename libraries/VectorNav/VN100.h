@@ -61,6 +61,48 @@ class VN100 {
     return crc;
   }
 
+  uint8_t getVPEerrors(uint16_t vStat)
+  {
+    if ((vStat & 0xC000) == 0xC000){ //Atitude quality field (2-bit)
+      //0 - Excellent, 1 - Good, 2- Bad, 3 -Not tracking 
+      return 13; // error code 13 - attitude not tracking
+      //We could add Bad to this if we need to
+    }
+    if((vStat & 0x2000) == 0x2000){ // GyroSaturation Field (1-bit)
+      return 14; //eCode 14 - At least one gyro saturated
+    }
+    if((vStat & 0x1000) ==0x1000){ // GyroSaturRecovery (1-bit)
+      return 15; // Currently the gyro is recovering 
+    }
+    if((vStat & 0x0C00) != 0x0000){ //MagDisturbance (2-bit)
+      return 16; //Disturbance is present if not 0 (1-3 are bad)
+    }
+    if((vStat & 0x0200) == 0x0200){//MagSaturation (1-bit)
+      return 17; // at least 1 mag saturated
+    }
+    // if((vStat & 0x0180) != 0x0000){//AccDisturbance (2-bit)
+    //   if((vStat & 0x0180) == 0x0080){
+    //     return 18; // A disturbance magnitude 1 was detected
+    //   }else if((vStat & 0x0180) == 0x0100){
+    //     return 19; // A disturbance magnitude 2 was detected
+    //   }else{
+    //     return 20; // A disturbance magnitude 3 was detected
+    //   }
+      
+    // }
+    if((vStat & 0x0060) == 0x0060){//AccSaturation (1-bit)
+      return 21; // at least one acc is saturated
+    }
+    // if((vStat & 0x0020) == 0x0020){ // Known magnetic distrbance (1-bit)
+    //   return 22; //Tuned out
+    // }
+    // if((vStat & 0x0010) == 0x0010){ // Known accel disturbance (1-bit)
+    //   return 23; //Tuned out
+    // }
+    //No Problems? 
+    return 0;
+  }
+
 public:
   // response header for SPI read/write commands
   uint8_t resphead[4];
@@ -352,8 +394,7 @@ public:
     swapByte(&pCRC[0],&pCRC[1]); //Swap for endianness
     // crcMat
     if(crc == packet.checksum){
-
-      return 0;
+      return getVPEerrors(packet.VPEstatus);
     }
     else{
       uint8_t crcConfig[7] = {0,0,0,1,1,3,0};
