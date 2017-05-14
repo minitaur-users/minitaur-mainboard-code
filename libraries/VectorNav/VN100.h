@@ -22,7 +22,9 @@ enum VN100ReadMode {
 
 typedef struct {
   float dat[9];
+  uint16_t VPEstatus;
   uint16_t checksum;
+  
 } __attribute__ ((packed)) VN100240CHECKSUM;
 
 
@@ -95,10 +97,10 @@ public:
     // Initial configuration
     // VPE config (register 35) defaults are 1,1,1,1 - OK
     // VPE mag config (36) set all to 0 (don't trust magnetometer)
-    float magConfig[9] = {0,0,0, 0,0,0, 0,0,0};
+    float magConfig[9] = {.01,.01,.01, .01,.01,.01, .01,.01,.01};
     writeReg(VN_REG_VPE_MAG_CONFIG, 36, (const uint8_t *)magConfig);
-    uint8_t crcConfig[7] = {0,0,0,0,1,3,0};
-    delay(5);
+    uint8_t crcConfig[7] = {0,0,0,1,1,3,0};
+    delay(10);
     writeReg(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
     // delay(1);
     // writeReg(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
@@ -110,10 +112,10 @@ public:
     // writeReg(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
     delay(1);
       
-    writeRegCrc(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
-    delay(1);
-    writeRegCrc(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
-    delay(1);
+    // writeRegCrc(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
+    // delay(1);
+    // writeRegCrc(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
+    // delay(1);
     // // vn100.writeReg(6,2,testBytes);
     // delay(5);
     // writeRegCrc(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
@@ -183,7 +185,7 @@ public:
       digitalWrite(csPin, HIGH);
       if (mode == VN_READ_REQUEST) {
         // Request again
-        delayMicroseconds(30);
+        delayMicroseconds(40);
         digitalWrite(csPin, LOW);
         cmd[0] = VN_CMD_READ;
         cmd[1] = reg;
@@ -228,7 +230,7 @@ public:
     // _SPI.transfer(0x00);
     // for (int i=0; i<N; ++i)
     //   _SPI.transfer(args[i]);
-    // // delayMicroseconds(1);
+    delayMicroseconds(1);
     digitalWrite(csPin, HIGH);
     delayMicroseconds(50);
 
@@ -326,9 +328,9 @@ public:
 
     // static float dat[9];
     VN100240CHECKSUM packet;
-    readReg(VN_REG_YPR_IACC_ANGR, 36, (uint8_t *)&packet);
+    readReg(VN_REG_YPR_IACC_ANGR, 38, (uint8_t *)&packet); // We read 38 for the data(36) and 2 for the VPEstatus(2)
     // test read and request
-    // readReg(VN_REG_YPR_IACC_ANGR, 36, (uint8_t *)&packet, VN_READ_REQUEST);
+    // readReg(VN_REG_YPR_IACC_ANGR, 38, (uint8_t *)&packet, VN_READ_REQUEST);
     // problems with reading?
     yaw = radians(packet.dat[0]);
     pitch = radians(packet.dat[1]);
@@ -339,23 +341,28 @@ public:
     yawd = packet.dat[8];
     pitchd = packet.dat[7];
     rolld = packet.dat[6];
-    uint8_t packetDat[40];
-    memcpy(&packetDat[4],&packet,36);
+    uint8_t packetDat[42];
+    memcpy(&packetDat[4],&packet,38);
     uint8_t refHeader[4] = {0,1,VN_REG_YPR_IACC_ANGR,0};
     memcpy(&packetDat[0],&refHeader,4);
-    uint16_t crc = calculateCRC(packetDat, 40);
+
+    uint16_t crc = calculateCRC(packetDat, 42);
+    uint16_t zero = 0;
     uint8_t *pCRC = (uint8_t*)&crc; //create dummy for swap
     swapByte(&pCRC[0],&pCRC[1]); //Swap for endianness
     // crcMat
     if(crc == packet.checksum){
+
       return 0;
     }
     else{
-      uint8_t crcConfig[7] = {0,0,0,0,1,3,0};
-      writeReg(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
-
-      return 3;  
-      
+      uint8_t crcConfig[7] = {0,0,0,1,1,3,0};
+      if(zero==packet.checksum){
+        writeReg(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
+        return 4;
+      }else{
+        return 3;  
+      }
       
     }
   }
