@@ -22,11 +22,11 @@ unsigned short VN100::calculateCRC(unsigned char data[], unsigned int length)
 }
 uint8_t VN100::getVPEerrors(uint16_t vStat)
 {
-    if ((vStat & VN_VPE_ATTITUDE_QUAL) == 0xC000){ //Atitude quality field (2-bit)
-      //0 - Excellent, 1 - Good, 2- Bad, 3 -Not tracking 
-      return 13; // error code 13 - attitude not tracking
-      //We could add Bad to this if we need to
-    }
+    // if ((vStat & VN_VPE_ATTITUDE_QUAL) == 0xC000){ //Atitude quality field (2-bit)
+    //   //0 - Excellent, 1 - Good, 2- Bad, 3 -Not tracking 
+    //   return 13; // error code 13 - attitude not tracking
+    //   //We could add Bad to this if we need to
+    // }
     if((vStat & VN_VPE_GYRO_SATURATION) == 0x2000){ // GyroSaturation Field (1-bit)
       return 14; //eCode 14 - At least one gyro saturated
     }
