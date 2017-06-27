@@ -7,6 +7,9 @@
  */
 #include "VN100.h"
 
+#define DMA_Channel_Rx     DMA1_Channel4
+#define DMA_Channel_Tx     DMA1_Channel5
+
 unsigned short VN100::calculateCRC(unsigned char data[], unsigned int length)
 {
     unsigned int i;
@@ -83,6 +86,7 @@ uint8_t VN100::getVPEerrors(uint16_t vStat)
     // VPE config (register 35) defaults are 1,1,1,1 - OK
     // VPE mag config (36) set all to 0 (don't trust magnetometer)
     float magConfig[9] = {.01,.01,.01, .01,.01,.01, .01,.01,.01};
+    // float magConfig[9] = {1,1,1, 1,1,1, 1,1,1};
     writeReg(VN_REG_VPE_MAG_CONFIG, 36, (const uint8_t *)magConfig);
     uint8_t crcConfig[7] = {0,0,0,1,1,3,0};
     delay(10);
@@ -342,6 +346,50 @@ uint8_t VN100::getVPEerrors(uint16_t vStat)
     }
   }
 
+    uint8_t VN100::getWMag(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld, float& magx, float& magy, float& magz, float& ax, float& ay, float& az) {
+    // VN100: 27 (48bytes) = YPR,MAG,ACC,ANGRATES
+    // VN100: 240 (36bytes) = YPR,TRUE_INERTIAL_ACC,ANGRATES
+
+    // static float dat[9];
+    VN10027CHECKSUM packet;
+    readReg(VN_REG_YPR_MAG_IACC_ANGR, 50, (uint8_t *)&packet); // We read 50 for the data(48) and 2 for the VPEstatus(2)
+    yaw = radians(packet.dat[0]);
+    pitch = radians(packet.dat[1]);
+    roll = radians(packet.dat[2]);
+    magx = packet.dat[3];
+    magy = packet.dat[4];
+    magz = packet.dat[5];
+    ax = packet.dat[6];
+    ay = packet.dat[7];
+    az = packet.dat[8];
+    yawd = packet.dat[11];
+    pitchd = packet.dat[10];
+    rolld = packet.dat[9];
+    uint8_t packetDat[54];
+    memcpy(&packetDat[4],&packet,50);
+    uint8_t refHeader[4] = {0,1,VN_REG_YPR_MAG_IACC_ANGR,0};
+    memcpy(&packetDat[0],&refHeader,4);
+
+    uint16_t crc = calculateCRC(packetDat, 54);
+    uint16_t zero = 0;
+    uint8_t *pCRC = (uint8_t*)&crc; //create dummy for swap
+    swapByte(&pCRC[0],&pCRC[1]); //Swap for endianness
+    // crcMat
+    if(crc == packet.checksum){
+      return getVPEerrors(packet.VPEstatus);
+    }
+    else{
+      uint8_t crcConfig[7] = {0,0,0,1,1,3,0};
+      if(zero==packet.checksum){
+        writeReg(VN_REG_COM_PRTCL_CNTRL, 7, crcConfig);
+        return 4;
+      }else{
+        return 3;  
+      }
+      
+    }
+  }
+
   /**
    * @brief Retrieves angles and angular rates
    * @details This function blocks for a few hundred microseconds.
@@ -353,7 +401,61 @@ uint8_t VN100::getVPEerrors(uint16_t vStat)
    * @param pitchd in rad/s
    * @param rolld in rad/s
    */
+  uint8_t VN100::getWMag(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld, float& magx, float& magy, float& magz){
+    //This version of get gets the magnetometer raw data, used for debugging purposes only 
+    float ax, ay, az; // Dummies 
+    return getWMag(yaw, pitch, roll, yawd, pitchd, rolld, magx, magy, magz, ax, ay, az);
+  }
   uint8_t VN100::get(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld) {
     float ax, ay, az;// dummies
-    return get(yaw, pitch, roll, yawd, pitchd, rolld, ax, ay, az);
+    return get(yaw, pitch, roll, yawd, pitchd, rolld, ax, ay, az); // This is the get function for normal operation
   }
+
+
+// extern "C" void DMA1_Channel5_IRQHandler() {
+//   if (DMA_GetITStatus(DMA1_IT_TC5)) {
+//     DMA_ClearITPendingBit(DMA1_IT_TC5);
+
+//     digitalWrite(PB12, HIGH);
+//   // digitalWrite(SS, HIGH);
+//   // do {
+//   //   SPI_I2S_ReceiveData16(cmdSeqSPIx);
+//   // } while(SPI_I2S_GetFlagStatus(cmdSeqSPIx, SPI_I2S_FLAG_RXNE));
+//   // while (SPI_I2S_GetFlagStatus(cmdSeqSPIx, SPI_I2S_FLAG_BSY) == SET);
+//   DMA_Cmd(DMA_Channel_Tx, DISABLE);
+//   DMA_Cmd(DMA_Channel_Rx, DISABLE);
+//   SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Tx | SPI_I2S_DMAReq_Rx, DISABLE);
+
+//     if (!VN100::dmaReadState) {
+//       TIM3->PSC = 24; // Set prescaler =25 (n+1) 
+//       TIM3->ARR  = 50 // Auto-reload value  = 50 us
+//       TIM3->DIER = TIM_DIER_UIE; // Enable update interrupt
+//       TIM3->CR1  = TIM_CR1_CEN; // Enable timer
+//       nvicEnable(TIM3_CC1_IRQn);
+//   // START 50us TIMER
+      
+//     } else {
+//       VN100::dmaReadState = false;
+//       //nothing
+
+//     }
+//   }
+// }
+
+// // irqn after 50us
+// extern "C" void TIM3_CC1_IRQn() {
+//   //Start next step of read
+//     VN100::dmaReadState = true;
+//     DMA_Channel_Rx->CNDTR = cmdLength;
+//     DMA_Channel_Rx->CMAR = (uint32_t)&_lanRxBuf[bufIdx];
+//     DMA_Channel_Tx->CNDTR = cmdLength;
+//     // was already set to increment memory
+//     DMA_Channel_Tx->CMAR = (uint32_t)&_lanTxBuf[bufIdx];
+//     // Clear SPIx_DR data (even though I thought it would be fine since DMA read it)
+//     // start read
+//     digitalWrite(SS, LOW);
+//     // Enable the DMAs - They will await signals from the SPI hardware
+//     DMA_Cmd(DMA_Channel_Tx, ENABLE);
+//     DMA_Cmd(DMA_Channel_Rx, ENABLE);
+//     SPI_I2S_DMACmd(cmdSeqSPIx, SPI_I2S_DMAReq_Tx | SPI_I2S_DMAReq_Rx, ENABLE);
+//   }

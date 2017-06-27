@@ -15,6 +15,7 @@
 #define VN_REG_VPE_MAG_CONFIG    36
 #define VN_REG_YPR_IACC_ANGR     240
 #define VN_REG_COM_PRTCL_CNTRL   30
+#define VN_REG_YPR_MAG_IACC_ANGR 27
 
 #define VN_VPE_ATTITUDE_QUAL     0xC000
 #define VN_VPE_GYRO_SATURATION   0x2000
@@ -37,6 +38,12 @@ typedef struct {
   
 } __attribute__ ((packed)) VN100240CHECKSUM;
 
+typedef struct {
+  float dat[12];
+  uint16_t VPEstatus;
+  uint16_t checksum;
+  
+} __attribute__ ((packed)) VN10027CHECKSUM;
 /**
  * @brief VN100 hardware interface library
  */
@@ -44,7 +51,6 @@ class VN100 {
   SPIClass& _SPI;
   uint8_t csPin;
   uint8_t cmd[4];
-
   // Calculates the 16-bit CRC for the given ASCII or binary message.
   unsigned short calculateCRC(unsigned char data[], unsigned int length);
   uint8_t getVPEerrors(uint16_t vStat);
@@ -52,7 +58,7 @@ class VN100 {
 public:
   // response header for SPI read/write commands
   uint8_t resphead[4];
-
+  // static bool dmaReadState;
   VN100(SPIClass& _SPI) : _SPI(_SPI) {}
   
 
@@ -62,6 +68,8 @@ public:
   uint8_t writeRegCrc(uint8_t reg, int N, const uint8_t *args);
   void reset();
   uint8_t get(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld, float& ax, float& ay, float& az);
+  uint8_t getWMag(float& yaw, float& pitch, float& roll, float& magx, float& magy, float& magz, float& yawd, float& pitchd, float& rolld, float& ax, float& ay, float& az);
+  uint8_t getWMag(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld, float& magx, float& magy, float& magz);
   uint8_t get(float& yaw, float& pitch, float& roll, float& yawd, float& pitchd, float& rolld);
 };
 
