@@ -10,11 +10,7 @@
 
 /**
  * TODO:
- * input filtering to avoid falls
- * see if speed can increase
- * two leaps integrated
- * see if speed can increase
- * try odometry compare to ground truth
+ * relax
  * legs get caught in rocks: check leg extension in flight phase, if did not get small enough, leg must have gotten caught...do something??
  * energy efficiency: look at logs to see forces (where is energy going?)
  * touchdown detection
@@ -24,13 +20,22 @@
 Walk walk;
 
 void Walk::signal(uint8_t sig) {
+  delay(5);
   // FIXME for now use this for step over, later replace with proprio
   // use LEAP_STANCE to make update do the jump update instead
-  signalState = SIGNAL_LEAP_STANCE;
-  rsuJump.begin();
+  if (sig == 1) {
+    signalState = SIGNAL_LEAP_STANCE;
+    rsuJump.begin();
+  } else if (sig == 0) {
+    posRollMode = true;
+    posRollTimer = 0;
+  }
 }
 
 void Walk::update() {
+  posRollTimer++;
+  if (posRollTimer > 1000)
+    posRollMode = false;
   // Leap sub-behaviors -----------------------
   if (signalState == SIGNAL_LEAP_STANCE) {
     rsuJump.update();
@@ -51,17 +56,39 @@ void Walk::update() {
   // for the rest of the code, either bInverted or bUpright is true; use either to check
   // if running in inverted mode.
 
+  float extDes = map(vertDes, 0, 1, 1.0, 2.5);
+  if (mode == WM_SIT)
+    extDes = 0.8;
+
+  // RELAX SIT based on if just standing
+  if (fabsf(speedDes) < 0.3 && fabsf(yawDes) < 0.05)
+    relaxTimer++;
+  else
+    relaxTimer=0;
+  // if (relaxTimer > 2000 && mode == WM_WALK)
+  //   sit();
+  // if (relaxTimer < 2000 && mode == WM_SIT && remoteEnableSignal)
+  //   walk();
+
   // SIT MODE ------------------------------
-  if (mode == WM_SIT/* || mode == WM_WAIT*/) {
+  const uint32_t tSitStandAnim = 700;
+  if (mode == WM_SIT || (mode == WM_WALK && X.t - tstart < tSitStandAnim)) {
     // stand
     for (int i=0; i<4; ++i) {
-      leg[i].setGain(EXTENSION, 0.2);
-      leg[i].setGain(ANGLE, 0.8, 0.02);
-      float angDes = (i==0||i==2) ? 0.05 : 0.15;
+      float ext = leg[i].getPosition(EXTENSION);
+      leg[i].setGain(EXTENSION, 0.4);
+      leg[i].setGain(ANGLE, 0.6, 0.015);
+      float angDes = (i==0||i==2) ? 0.0 : 0.15;
       if (bInverted)
-        angDes = (i==0||i==2) ? 0.15 : 0.05;
-      // Height using remote
-      leg[i].setPosition(EXTENSION, map(vertDes, 0.0, 1.0, 0.4, 0.8));
+        angDes = (i==0||i==2) ? 0.15 : 0.0;
+      if (mode == WM_WALK) {
+        // move slowly to stand (extDes is far away)
+        leg[i].setPosition(EXTENSION, map(X.t-tstart, 0, tSitStandAnim, 0.6, extDes));
+      } else if (X.t - tstart < tSitStandAnim && ext > extDes + 0.05) {
+        // stand to sit
+        leg[i].setPosition(EXTENSION, ext-0.001);
+      } else 
+        leg[i].setPosition(EXTENSION, extDes);
       leg[i].setPosition(ANGLE, angDes - X.pitch);
     }
     // hitting remote switch moves to wait, and then it waits here 200ms before enabling
@@ -86,8 +113,8 @@ void Walk::update() {
   const int tflight = 170, tminstance = 100;
   // Gains attitude control
   const float kPitchD = 0.06;
-  // const float kRoll = 1.5, kRollD = 0.04;
-  const float kRoll = 2.0, kRollD = 0.05;
+  const float kRoll = 1.5, kRollD = 0.02;
+  // const float kRoll = 2.5, kRollD = 0.03;
   // Gains position control
   const float kExtPStance = 0.3, kExtDStance = 0.02;
   // const float kExtPStance = 0.5, kExtDStance = 0.01;
@@ -95,8 +122,6 @@ void Walk::update() {
   const float kAngPFlight = 0.6, kAngDFlight = 0.01;// 0.2 for lighter legs
   // Positions
   // float extDes = 2.5;//stance extension
-  // TEST height using remote
-  float extDes = map(vertDes, 0, 1, 1.0, 2.5);
   const float extMin = 0.3;//0.7//0.5 for light legs minimum extension in retraction
   const float kPEPthresh = 0.15;//0.1;// (i==1 || i==3) ? 0.3 : 0.1; //0.3 and 0.1
   // Forces
@@ -104,9 +129,18 @@ void Walk::update() {
 
 
   // Variables ----------------------------------------------------------------
-  float rollDes = 0;//(nextFlightLeg > 1) ? -0.1 : 0.1;
-  // float rollDes = yawDes;
-  float uroll = kRoll*(X.roll - rollDes) + kRollD*X.rolldot;
+  float uroll = 0;
+  if (posRollMode) {
+    uroll = -kRoll*X.roll + kRollD*X.rolldot;
+  } else {
+    uroll = kRoll*X.roll + kRollD*X.rolldot;
+  }
+  if (bInverted) {
+    // roll goes back down to zero when upside down but the "sign" is different
+    uroll = kRoll*X.roll - kRollD*X.rolldot;
+    if (posRollMode)
+      uroll = -kRoll*X.roll - kRollD*X.rolldot;
+  }
   float uspeed = kSpeed*speedDes;
   // body pitch should conform to slope (add pitch damping), but roll should correct to 0. instead legs should point vertically down
   float upitch = kPitchD*X.pitchdot;
@@ -123,7 +157,7 @@ void Walk::update() {
       bRear = !bRear;
     bool bRight = (i>1);
     // IMPORTANT: set nominal leg angles
-    float angNom = bRear ? 0.1 : 0.04;
+    float angNom = bRear ? 0.1 : -0.1;
     // get positions
     float ext = leg[i].getPosition(EXTENSION);
     float extvel = leg[i].getVelocity(EXTENSION);
@@ -210,7 +244,7 @@ void Walk::update() {
         numInStance++;
       }
       // Leg i is in stance. STANCE CONTROL - try to keep body level
-      leg[i].setGain(ANGLE, 1.0, 0.015);
+      leg[i].setGain(ANGLE, 1.0, 0.01);
       // lean forward based on speedDes, but add some decay
       float uyaw = bRight ? -kYaw*yawDes : kYaw*yawDes;
       if (flightLeg == -1 || fabsf(absAngles[i] > 0.3)) uyaw = 0;
@@ -237,7 +271,9 @@ void Walk::update() {
         // pitchCtrl = 0;
       }
 
-      leg[i].setOpenLoop(EXTENSION, kExtPStance*(extDes - ext) - kExtDStance*extvel + rollCtrl + pitchCtrl);
+      float kOffset = (flightLeg == -1) ? 0 : 0.03;
+
+      leg[i].setOpenLoop(EXTENSION, kExtPStance*(extDes - ext) - kExtDStance*extvel + rollCtrl + pitchCtrl + kOffset);
     }
     // liftoff 
     if (flightLeg==-1 && X.t - tTD > tminstance) {

@@ -29,7 +29,7 @@ Peripheral *imu = &imuVN100;// imuVN100 / imuMPU6000
 // #include <Eigen.h>
 
 // This must be set per robot zeros must be checked before running!
-const float motZeros[8] = {1.953, 4.426, 2.177, 0.316, 1.769, 5.122, 4.356, 4.518};//Penn Mini
+const float motZeros[8] = {2.504, 3.435, 2.335, 3.076, 6.067, 4.896, 6.190, 1.493}; // Carbon FiberTaur
 
 // Behavior array: add behaviors here. First one in the array is the starting behavior.
 // Make sure the #include is in Remote.h
