@@ -61,7 +61,6 @@ public:
   // static bool dmaReadState;
   VN100(SPIClass& _SPI) : _SPI(_SPI) {}
   
-
   void init(uint8_t csPin);
   uint8_t readReg(uint8_t reg, int N, uint8_t *buf, VN100ReadMode mode);
   uint8_t writeReg(uint8_t reg, int N, const uint8_t *args);
