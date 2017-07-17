@@ -36,7 +36,7 @@ const BoundParameters minitaurBoundParams = {
   // Retraction params
   .tretract = 100, .extMin = 0.6,
   // Stand params
-  .kExtStand = 0.3, .kAngStand = 1.1, .kAngStandD = 0.015
+  .kExtStand = 0.5, .kAngStand = 1.4, .kAngStandD = 0.02
 };
 
 // --------------
