@@ -65,7 +65,7 @@ void RSUJump::update() {
 			}
 
 			for (int i=0; i<4; ++i) {
-				leg[i].setGain(ANGLE,.7,.002);
+				leg[i].setGain(ANGLE,.9,.002);
 				leg[i].setGain(EXTENSION,.3,.002); //was 12
 				leg[i].setPosition(ANGLE,an0);
 				leg[i].setPosition(EXTENSION,ex0);
@@ -90,7 +90,7 @@ void RSUJump::update() {
 			}
 
 			for (int i=0; i<4; ++i) {
-				leg[i].setGain(ANGLE,.7,.002);
+				leg[i].setGain(ANGLE,.9,.002);
 				leg[i].setGain(EXTENSION,.3,.002); //was 12
 				leg[i].setPosition(ANGLE,an0);
 				leg[i].setPosition(EXTENSION,ex0);
@@ -182,14 +182,14 @@ void RSUJump::update() {
 				leg[3].setPosition(EXTENSION,1.4);
 
 			}else if(millis()-tEvent>75 && millis()-tEvent<100){
-				leg[0].setGain(ANGLE,.7);
-				leg[2].setGain(ANGLE,.7);
+				leg[0].setGain(ANGLE,.9);
+				leg[2].setGain(ANGLE,.9);
 
 				leg[0].setPosition(EXTENSION,.9);
 				leg[2].setPosition(EXTENSION,.9);
 
-				leg[0].setPosition(ANGLE,-0.5);//-.7);
-				leg[2].setPosition(ANGLE,-0.5);//-.7);
+				leg[0].setPosition(ANGLE,-0.7);//-.7);
+				leg[2].setPosition(ANGLE,-0.7);//-.7);
 			}else if(millis()-tEvent>100){
 				tEvent = millis();
 				mode = RSUJ_LANDED;
