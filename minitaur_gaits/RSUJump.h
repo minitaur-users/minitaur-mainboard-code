@@ -20,7 +20,7 @@
 
 enum RSUJumpMode {
   RSUJ_STAND, RSUJ_WAIT, RSUJ_FRONTHOP, RSUJ_PREJUMP, RSUJ_LEAP, 
-  RSUJ_RETRACT, RSUJ_TUCKED, RSUJ_AB, RSUJ_LANDED
+  RSUJ_RETRACT, RSUJ_TUCKED, RSUJ_AB, RSUJ_LANDED, RSUJ_POSTLANDED
 };
 
 class RSUJump : public Behavior {
@@ -29,7 +29,7 @@ public:
 
 	void begin(); 
 	void update();
-	bool running() { return !(mode == RSUJ_STAND ||  mode==RSUJ_AB || mode==RSUJ_LANDED); }
+	bool running() { return !(mode == RSUJ_STAND || mode==RSUJ_POSTLANDED); }
 	void end() { if (mode == RSUJ_WAIT) mode = RSUJ_STAND;}
 	void signal() {}
 
