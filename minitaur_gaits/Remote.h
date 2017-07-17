@@ -25,6 +25,7 @@
 #include "Bound.h"
 #include "Walk.h"
 #include "IMUReset.h"
+#include "FrontFlip.h"
 // ==================================
 
 
